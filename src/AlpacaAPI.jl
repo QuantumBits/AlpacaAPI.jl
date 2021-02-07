@@ -2,6 +2,10 @@ module AlpacaAPI
 
 using HTTP, JSON, TimesDates
 
+using  UUIDs, Printf
+
+import Base.show
+
 @enum EndPoints PAPER=1 LIVE=2
 
 mutable struct AlpacaParameters
@@ -11,7 +15,10 @@ mutable struct AlpacaParameters
 end
 
 # AlpacaAPI Parameters (default to PAPER account)
-const parameters = AlpacaParameters(PAPER, ENV["APCA-API-KEY-ID"], ENV["APCA-API-SECRET-KEY"])
+const parameters = AlpacaParameters(
+    haskey(ENV, "APCA-ENDPOINT") ? getproperty(AlpacaAPI, Symbol(ENV["APCA-ENDPOINT"])) : PAPER,
+    ENV["APCA-API-KEY-ID"], 
+    ENV["APCA-API-SECRET-KEY"])
 
 # Header for API calls
 HEADER(p::AlpacaParameters=parameters)::Tuple{Pair{String,String}, Pair{String,String}} = ("APCA-API-KEY-ID"=>p.APCA_API_KEY_ID, "APCA-API-SECRET-KEY"=>p.APCA_API_SECRET_KEY)
@@ -29,6 +36,8 @@ function set_parameters(
     parameters.APCA_API_SECRET_KEY = APCA_API_SECRET_KEY
     return
 end
+
+include("Misc.jl")
 
 include("Account.jl")
 include("Orders.jl")

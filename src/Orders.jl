@@ -1,9 +1,4 @@
-using UUIDs, TimeZones
-
-import Base.parse
-
-@enum Status open closed all
-@enum Direction asc desc
+@enum OrderStatus open closed all
 @enum OrderType market limit stop stop_limit trailing_stop
 @enum OrderSide buy sell
 @enum OrderTimeInForce day gtc opg cls ioc fok
@@ -115,7 +110,7 @@ See https://alpaca.markets/docs/api-documentation/api-v2/orders/
 
 """
 function get_orders(
-    status::Union{Nothing,String}       = nothing, # Order status to be queried. open, closed or all. Defaults to open.
+    status::Union{Nothing,OrderStatus}       = nothing, # Order status to be queried. open, closed or all. Defaults to open.
     limit::Union{Nothing,Int}           = nothing, # The maximum number of orders in response. Defaults to 50 and max is 500.
     after::Union{Nothing,TimeDateZone}  = nothing, # The response will include only ones submitted after this timestamp (exclusive.)
     until::Union{Nothing,TimeDateZone}  = nothing, # The response will include only ones submitted until this timestamp (exclusive.)
@@ -124,7 +119,7 @@ function get_orders(
     symbols::Union{Nothing,String}      = nothing, # A comma-separated list of symbols to filter by (ex. “AAPL,TSLA,MSFT”).
     )
 
-    query = Dict{String,Any}()
+    query = Dict{String,String}()
 
     if (status       !== nothing) query["status"]     =  status     end
     if (limit        !== nothing) query["limit"]      =  limit      end
