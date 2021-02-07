@@ -36,6 +36,15 @@ struct Order
   type::Union{OrderType,Nothing}
   updated_at::Union{TimeDateZone,Nothing}
 end
+function Base.show(io::IO, ::MIME"text/plain", a::Order)
+    print(io, "Order\n-------\n")
+    for fname in fieldnames(Order)
+        field_value = getfield(a, Symbol(fname))
+        if field_value !== nothing
+            @printf(io, "* %-16.16s : %s\n", fname, getfield(a, Symbol(fname)))
+        end
+    end
+end
 function Order(d::Dict)
 
     asset_class      = d["asset_class"]      !== nothing ? d["asset_class"]                                   : nothing
@@ -101,23 +110,28 @@ function Order(d::Dict)
         )
 end
 
-"""
-    AlpacaAPI.get_orders(endpoint::EndPoints=PAPER)
+struct TakeProfit
+end
+struct StopLoss
+end
 
-(Filtered) list all orders for account.
+"""
+    AlpacaAPI.get_orders(<args>)
+
+(Filtered) list of all orders for account.
 
 See https://alpaca.markets/docs/api-documentation/api-v2/orders/
 
 """
 function get_orders(
-    status::Union{Nothing,OrderStatus}       = nothing, # Order status to be queried. open, closed or all. Defaults to open.
+    status::Union{Nothing,OrderStatus}  = nothing, # Order status to be queried. open, closed or all. Defaults to open.
     limit::Union{Nothing,Int}           = nothing, # The maximum number of orders in response. Defaults to 50 and max is 500.
     after::Union{Nothing,TimeDateZone}  = nothing, # The response will include only ones submitted after this timestamp (exclusive.)
     until::Union{Nothing,TimeDateZone}  = nothing, # The response will include only ones submitted until this timestamp (exclusive.)
     direction::Union{Nothing,String}    = nothing, # The chronological order of response based on the submission time. asc or desc. Defaults to desc.
     nested::Union{Nothing,Bool}         = nothing, # If true, the result will roll up multi-leg orders under the legs field of primary order.
     symbols::Union{Nothing,String}      = nothing, # A comma-separated list of symbols to filter by (ex. “AAPL,TSLA,MSFT”).
-    )
+    )::Vector{Order}
 
     query = Dict{String,String}()
 
@@ -136,14 +150,14 @@ function get_orders(
 end
 
 """
-    AlpacaAPI.post_orders(endpoint::EndPoints=PAPER)
+    AlpacaAPI.post_orders(<args>)
 
-(Filtered) list all orders for account.
+Create an order.
 
 See https://alpaca.markets/docs/api-documentation/api-v2/orders/
 
 """
-function post_orders(
+function post_order(
     symbol::String,
     qty::Int,
     side::OrderSide,
@@ -156,26 +170,65 @@ function post_orders(
     extended_hours::Bool=false,
     client_order_id::Union{UUID,Nothing}=nothing,
     order_class::Union{OrderClass,Nothing}=nothing,
+    take_profit::Union{TakeProfit,Nothing}=nothing, #! Implement TakeProfit type
+    stop_loss::Union{StopLoss,Nothing}=nothing,     #! Implement StopLoss type
+    )::Order
 
+    body = Dict{String,Any}(
+        "symbol"        => symbol,
+        "qty"           => qty,
+        "side"          => side,
+        "type"          => type,
+        "time_in_force" => time_in_force
     )
 
-    body = Dict{String,String}(
-        "symbol"=> string(symbol),
-        "qty"   => string(qty),
-        "side"  => string(side),
-        "type"  => string(type),
-    )
+    if type == limit || type == stop_limit
+        body["limit_price"] = limit_price
+    end
+    if type == stop || type == stop_limit
+        body["stop_price"] = stop_price
+    end
+    if type == trailing_stop
+        if trail_percent === nothing && trail_price !== nothing
+            body["trail_price"] = trail_price
+        elseif trail_percent !== nothing && trail_price === nothing
+            body["trail_percent"] = trail_percent
+        else
+            error("Cannot have both `trail_price` ($trail_price) and `trail_percent` ($trail_percent) defined when type is $type")
+        end
+    end
 
-    if (status       !== nothing) query["status"]     =  status     end
-    if (limit        !== nothing) query["limit"]      =  limit      end
-    if (after        !== nothing) query["after"]      =  after      end
-    if (until        !== nothing) query["until"]      =  until      end
-    if (direction    !== nothing) query["direction"]  =  direction  end
-    if (nested       !== nothing) query["nested"]     =  nested     end
-    if (symbols      !== nothing) query["symbols"]    =  symbols    end
+    if (extended_hours  !== nothing) body["extended_hours"]  = extended_hours  end
+    if (client_order_id !== nothing) body["client_order_id"] = client_order_id end
+    if (order_class     !== nothing) body["order_class"]     = order_class     end
+    if (take_profit     !== nothing) body["take_profit"]     = take_profit     end
+    if (stop_loss       !== nothing) body["stop_loss"]       = stop_loss       end
+    @info JSON.json(body)
+    @info HEADER()
 
-    r = HTTP.post(join([ENDPOINT(), "v2","orders"],'/'), HEADER(); body = body)
+    r = HTTP.post(join([ENDPOINT(), "v2","orders"],'/'), HEADER(); body=JSON.json(body))
 
-    return JSON.parse(String(r.body))
+    return Order(JSON.parse(String(r.body)))
+
+end
+
+"""
+    AlpacaAPI.get_order(<order_id>)
+
+Return a single order with a given ID.
+
+See https://alpaca.markets/docs/api-documentation/api-v2/orders/
+
+"""
+function get_order(
+    order_id::UUID,
+    nested::Bool=false
+    )::Order
+
+    query = Dict{String,String}("nested"=>string(nested))
+
+    r = HTTP.get(join([ENDPOINT(), "v2","orders",HTTP.URIs.escapeuri(string(order_id))],'/'), HEADER(); query = query)
+
+    return Order(JSON.parse(String(r.body)))
 
 end

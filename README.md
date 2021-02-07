@@ -10,14 +10,14 @@ AlpacaAPI.jl is a wrapper built entirely in Julia for [Alpaca, the modern platfo
 
 To use the Alpaca API, you'll need to first [get your API key after creating an account with Alpaca](https://app.alpaca.markets/).
 
-After that, you'll need to put your API Key ID and your Secret Key and put them into environment variables called `APCA_API_KEY_ID` and `APCA_API_SECRET_KEY`, respectively. By default AlpacaAPI.jl assumes you're using a **PAPER** account, but you can also set the `APCA_ENDPOINT` environment variable to "LIVE" or "PAPER" to set the endpoint to **LIVE** or **PAPER**, respectively.
+After that, you'll need to put your API Key ID and your Secret Key and put them into environment variables called `APCA-API-KEY-ID` and `APCA-API-SECRET-KEY`, respectively. By default AlpacaAPI.jl assumes you're using a **PAPER** account, but you can also set the `APCA-ENDPOINT` environment variable to "LIVE" or "PAPER" to set the endpoint to **LIVE** or **PAPER**, respectively.
 
 An easy way to set this up is to add the following lines to your `~/.julia/config/startup.jl` script.
 
 ```julia
-ENV["APCA_ENDPOINT"]        = "PAPER"
-ENV["APCA_API_KEY_ID"]      = "YOUR-PAPER-KEY-HERE"
-ENV["APCA_API_SECRET_KEY"]  = "YOUR-PAPER-SECRET-HERE"
+ENV["APCA-ENDPOINT"]        = "PAPER"
+ENV["APCA-API-KEY-ID"]      = "YOUR-PAPER-KEY-HERE"
+ENV["APCA-API-SECRET-KEY"]  = "YOUR-PAPER-SECRET-HERE"
 ```
 
 > Keep in mind that your **PAPER** account and your **LIVE** accounts have **different keys!**
@@ -60,7 +60,7 @@ Account
 
 ## Switching Between PAPER and LIVE Accounts
 
-By default AlpacaAPI assumes you're using a PAPER account and not a LIVE account if you don't explicitly set the `APCA_ENDPOINT` environment variable. If after starting up AlpacaAPI.jl you want to change the account you're using, you can use the `set_parameters` function. It is recommended to load your keys from a file on your system instead of typing them directly into the REPL. This example uses the JSON.jl package to read from a `.secrets` file.
+By default AlpacaAPI assumes you're using a PAPER account and not a LIVE account if you don't explicitly set the `APCA-ENDPOINT` environment variable. If after starting up AlpacaAPI.jl you want to change the account you're using, you can use the `set_parameters` function. It is recommended to load your keys from a file on your system instead of typing them directly into the REPL. This example uses the JSON.jl package to read from a `.secrets` file.
 
 ```julia
 julia> using JSON

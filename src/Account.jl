@@ -31,7 +31,10 @@ end
 function Base.show(io::IO, ::MIME"text/plain", a::Account)
     print(io, "Account\n-------\n")
     for fname in fieldnames(Account)
-        @printf(io, "* %-23.23s : %s\n", fname, getfield(a, Symbol(fname)))
+        field_value = getfield(a, Symbol(fname))
+        if field_value !== nothing
+            @printf(io, "* %-23.23s : %s\n", fname, getfield(a, Symbol(fname)))
+        end
     end
 end
 function Account(d::Dict)
