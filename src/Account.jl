@@ -1,4 +1,8 @@
+#= ENUMERATIONS =#
+
 @enum AccountStatus ONBOARDING SUBMISSION_FAILED SUBMITTED ACCOUNT_UPDATED APPROVAL_PENDING ACTIVE REJECTED
+
+#= TYPE DEFINITIONS =#
 
 struct Account
     account_blocked::Bool
@@ -69,17 +73,19 @@ function Account(d::Dict)
     )
 end
 
-"""
-    AlpacaAPI.get_account()
-
-List account information.
-
-See https://alpaca.markets/docs/api-documentation/api-v2/account/
+#= API ENDPOINTS =#
 
 """
-function get_account()
+    AlpacaAPI.account(c::Credentials)
 
-    r = HTTP.get(join([ENDPOINT(), "v2","account"],'/'), HEADER())
+    List account information.
+
+    See https://alpaca.markets/docs/api-documentation/api-v2/account/
+
+"""
+function account(c::Credentials)
+
+    r = HTTP.get(join([ENDPOINT(c), "v2","account"],'/'), HEADER(c))
 
     return Account(JSON.parse(String(r.body)))
 
