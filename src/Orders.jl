@@ -1,9 +1,13 @@
+#= ENUMERATIONS =#
+
 @enum OrderStatus open closed all
 @enum OrderType market limit stop stop_limit trailing_stop
 @enum OrderSide buy sell
 @enum OrderTimeInForce day gtc opg cls ioc fok
 @enum OrderLifecycle new partially_filled filled done_for_day canceled expired replaced pending_cancel pending_replace accepted pending_new accepted_for_bidding stopped rejected suspended calculated
 @enum OrderClass simple bracket oco oto
+
+#= TYPE DEFINITIONS =#
 
 struct Order
   asset_class::Union{String,Nothing}
@@ -110,20 +114,42 @@ function Order(d::Dict)
         )
 end
 
+struct CanceledOrder
+    id::UUID
+    status::Any
+    order::Order
+end
+function Base.show(io::IO, ::MIME"text/plain", a::CanceledOrder)
+    print(io, "Canceled Order\n-------\n")
+    for fname in fieldnames(CanceledOrder)
+        field_value = getfield(a, Symbol(fname))
+        if field_value !== nothing
+            @printf(io, "* %-16.16s : %s\n", fname, getfield(a, Symbol(fname)))
+        end
+    end
+end
+CanceledOrder(d::Dict) = CanceledOrder(UUID(d["id"]), d["status"], Order(d["body"]))
+
 struct TakeProfit
+    limit_price::Real
 end
 struct StopLoss
+    stop_price::Real
+    limit_price::Union{Real,Nothing}
 end
+StopLoss(stop_price::Real) = StopLoss(stop_price, nothing)
+
+#= API ENDPOINTS =#
 
 """
-    AlpacaAPI.get_orders(<args>)
+    AlpacaAPI.list_orders(c::Credentials, <optional args>)
 
-(Filtered) list of all orders for account.
+    List all orders for your account.
 
-See https://alpaca.markets/docs/api-documentation/api-v2/orders/
+    See https://alpaca.markets/docs/api-documentation/api-v2/orders/
 
 """
-function get_orders(
+function list_orders(c::Credentials,
     status::Union{Nothing,OrderStatus}  = nothing, # Order status to be queried. open, closed or all. Defaults to open.
     limit::Union{Nothing,Int}           = nothing, # The maximum number of orders in response. Defaults to 50 and max is 500.
     after::Union{Nothing,TimeDateZone}  = nothing, # The response will include only ones submitted after this timestamp (exclusive.)
@@ -143,21 +169,21 @@ function get_orders(
     if (nested       !== nothing) query["nested"]     =  nested     end
     if (symbols      !== nothing) query["symbols"]    =  symbols    end
 
-    r = HTTP.get(join([ENDPOINT(), "v2","orders"],'/'), HEADER(); query = query)
+    r = HTTP.get(join([ENDPOINT(c), "v2","orders"],'/'), HEADER(c); query = query)
 
     return Order.(JSON.parse(String(r.body)))
 
 end
 
 """
-    AlpacaAPI.post_orders(<args>)
+    AlpacaAPI.order(c::Credentials, symbol, qty, side, type, time_in_force, <optional args>)
 
-Create an order.
+    Request a new order.
 
-See https://alpaca.markets/docs/api-documentation/api-v2/orders/
+    See https://alpaca.markets/docs/api-documentation/api-v2/orders/
 
 """
-function post_order(
+function order(c::Credentials,
     symbol::String,
     qty::Int,
     side::OrderSide,
@@ -170,8 +196,8 @@ function post_order(
     extended_hours::Bool=false,
     client_order_id::Union{UUID,Nothing}=nothing,
     order_class::Union{OrderClass,Nothing}=nothing,
-    take_profit::Union{TakeProfit,Nothing}=nothing, #! Implement TakeProfit type
-    stop_loss::Union{StopLoss,Nothing}=nothing,     #! Implement StopLoss type
+    take_profit::Union{TakeProfit,Nothing}=nothing,
+    stop_loss::Union{StopLoss,Nothing}=nothing,
     )::Order
 
     body = Dict{String,Any}(
@@ -203,32 +229,94 @@ function post_order(
     if (order_class     !== nothing) body["order_class"]     = order_class     end
     if (take_profit     !== nothing) body["take_profit"]     = take_profit     end
     if (stop_loss       !== nothing) body["stop_loss"]       = stop_loss       end
-    @info JSON.json(body)
-    @info HEADER()
 
-    r = HTTP.post(join([ENDPOINT(), "v2","orders"],'/'), HEADER(); body=JSON.json(body))
+    r = HTTP.post(join([ENDPOINT(c), "v2","orders"],'/'), HEADER(c); body=JSON.json(body))
 
     return Order(JSON.parse(String(r.body)))
 
 end
 
 """
-    AlpacaAPI.get_order(<order_id>)
+    AlpacaAPI.get_order(c::Credentials, order_id, nested=false)
 
-Return a single order with a given ID.
+    Return a single order with a given ID.
 
-See https://alpaca.markets/docs/api-documentation/api-v2/orders/
+    See https://alpaca.markets/docs/api-documentation/api-v2/orders/
 
 """
-function get_order(
+function get_order(c::Credentials, 
     order_id::UUID,
     nested::Bool=false
     )::Order
 
     query = Dict{String,String}("nested"=>string(nested))
 
-    r = HTTP.get(join([ENDPOINT(), "v2","orders",HTTP.URIs.escapeuri(string(order_id))],'/'), HEADER(); query = query)
+    r = HTTP.get(join([ENDPOINT(c), "v2","orders",HTTP.URIs.escapeuri(string(order_id))],'/'), HEADER(c); query = query)
 
     return Order(JSON.parse(String(r.body)))
+
+end
+
+"""
+    AlpacaAPI.update_order(c::Credentials, order_id, <see get_order args>)
+
+    Update an order with a given ID.
+
+    See https://alpaca.markets/docs/api-documentation/api-v2/orders/
+
+"""
+function update_order(c::Credentials, 
+    order::Order;
+    qty::Union{Int,Nothing}=nothing,
+    time_in_force::Union{OrderTimeInForce,Nothing}=nothing,
+    limit_price::Union{Real,Nothing}=nothing,   # Required if type is limit or stop_limit
+    stop_price::Union{Real,Nothing}=nothing,    # Required if type is stop or stop_limit
+    trail_price::Union{Real,Nothing}=nothing,   # Required if type is trailing_stop and trail_percent is nothing
+    trail_percent::Union{Real,Nothing}=nothing, # Required if type is trailing_stop and trail_price is nothing
+    client_order_id::Union{UUID,Nothing}=nothing,
+    )::Order
+
+    body = Dict{String,Any}()
+
+    if (qty           !== nothing) body["qty"]           = qty           end
+    if (time_in_force !== nothing) body["time_in_force"] = time_in_force end
+
+    if order.type == limit || order.type == stop_limit
+        body["limit_price"] = limit_price
+    end
+    if order.type == stop || order.type == stop_limit
+        body["stop_price"] = stop_price
+    end
+    if order.type == trailing_stop
+        if trail_percent === nothing && trail_price !== nothing
+            body["trail"] = trail_price     # For update, the parameter is "trail" for both
+        elseif trail_percent !== nothing && trail_price === nothing
+            body["trail"] = trail_percent   # For update, the parameter is "trail" for both
+        else
+            error("Cannot have both `trail_price` ($trail_price) and `trail_percent` ($trail_percent) defined when type is $type")
+        end
+    end
+
+    if (client_order_id !== nothing) body["client_order_id"] = client_order_id end
+
+    r = HTTP.patch(join([ENDPOINT(c), "v2","orders",HTTP.URIs.escapeuri(string(order.id))],'/'), HEADER(c); body=JSON.json(body))
+
+    return Order(JSON.parse(String(r.body)))
+
+end
+
+"""
+    AlpacaAPI.cancel_all_orders(c::Credentials)
+
+    Cancel all open orders.
+
+    See https://alpaca.markets/docs/api-documentation/api-v2/orders/
+
+"""
+function cancel_all_orders(c::Credentials)
+
+    r = HTTP.delete(join([ENDPOINT(c), "v2","orders"],'/'), HEADER(c))
+
+    return CanceledOrder.(JSON.parse(String(r.body)))
 
 end
