@@ -10,24 +10,27 @@ AlpacaAPI.jl is a wrapper built entirely in Julia for [Alpaca, the modern platfo
 
 To use the Alpaca API, you'll need to first [get your API key after creating an account with Alpaca](https://app.alpaca.markets/).
 
-After that, you'll need to put your API Key ID and your Secret Key and put them into environment variables called `APCA-API-KEY-ID` and `APCA-API-SECRET-KEY`, respectively. By default AlpacaAPI.jl assumes you're using a **PAPER** account, but you can also set the `APCA-ENDPOINT` environment variable to "LIVE" or "PAPER" to set the endpoint to **LIVE** or **PAPER**, respectively.
+After that, you'll need to put your API Key ID and your Secret Key and put them into environment variables called `APCA-API-KEY-ID` and `APCA-API-SECRET-KEY`, respectively. By default AlpacaAPI.jl assumes you're using a **PAPER** account, but you can also set the `APCA-API-ENDPOINT` environment variable to "LIVE" or "PAPER" to set the endpoint to **LIVE** or **PAPER**, respectively.
 
 An easy way to set this up is to add the following lines to your `~/.julia/config/startup.jl` script.
 
 ```julia
-ENV["APCA-ENDPOINT"]        = "PAPER"
+ENV["APCA-API-ENDPOINT"]    = "PAPER"
 ENV["APCA-API-KEY-ID"]      = "YOUR-PAPER-KEY-HERE"
 ENV["APCA-API-SECRET-KEY"]  = "YOUR-PAPER-SECRET-HERE"
 ```
 
-> Keep in mind that your **PAPER** account and your **LIVE** accounts have **different keys!**
+> Keep in mind that your **PAPER** and **LIVE** accounts use **different keys!**
 
 After this initial setup, it's easy to start using AlpacaAPI
 
 ```julia
 julia> using AlpacaAPI
 
-julia> AlpacaAPI.get_account()
+julia> c = AlpacaAPI.credentials()
+AlpacaAPI.Credentials(AlpacaAPI.LIVE, "YOUR-LIVE-KEY-HERE", "YOUR-LIVE-SECRET-HERE")
+
+julia> AlpacaAPI.account(c)
 Account
 -------
 * account_blocked         : false
@@ -58,21 +61,56 @@ Account
 * transfers_blocked       : false
 ```
 
-## Switching Between PAPER and LIVE Accounts
+## API Implementation Status
 
-By default AlpacaAPI assumes you're using a PAPER account and not a LIVE account if you don't explicitly set the `APCA-ENDPOINT` environment variable. If after starting up AlpacaAPI.jl you want to change the account you're using, you can use the `set_parameters` function. It is recommended to load your keys from a file on your system instead of typing them directly into the REPL. This example uses the JSON.jl package to read from a `.secrets` file.
+### Accounts (Done!)
 
-```julia
-julia> using JSON
+[Link to Accounts Documentation](https://alpaca.markets/docs/api-documentation/api-v2/account/)
 
-julia> AlpacaInfoLIVE = JSON.parsefile("/path/to/.secrets_LIVE")
-Dict{String, Any} with 2 entries:
-  "SECRET" => "YOUR-LIVE-SECRET-HERE"
-  "KEY"    => "YOUR-LIVE-KEY-HERE"
+### Orders (In Progress)
 
-julia> AlpacaAPI.set_parameters(AlpacaAPI.LIVE, AlpacaInfoLIVE["KEY"], AlpacaInfoLIVE["SECRET"])
+[Link to Orders Documentation](https://alpaca.markets/docs/api-documentation/api-v2/orders/)
 
-julia> AlpacaAPI.parameters
-AlpacaAPI.AlpacaParameters(AlpacaAPI.LIVE, "YOUR-LIVE-KEY-HERE", "YOUR-LIVE-SECRET-HERE")
+### Positions (Planned)
 
-```
+[Link to Positions Documentation](https://alpaca.markets/docs/api-documentation/api-v2/positions/)
+
+### Assets (Planned)
+
+[Link to Assets Documentation](https://alpaca.markets/docs/api-documentation/api-v2/assets/)
+
+### Streaming (Planned)
+
+[Link to Streaming Documentation](https://alpaca.markets/docs/api-documentation/api-v2/streaming/)
+
+### Watchlist (Planned)
+
+[Link to Watchlist Documentation](https://alpaca.markets/docs/api-documentation/api-v2/watchlist/)
+
+### Calendar (Planned)
+
+[Link to Calendar Documentation](https://alpaca.markets/docs/api-documentation/api-v2/calendar/)
+
+### Clock (Planned)
+
+[Link to Clock Documentation](https://alpaca.markets/docs/api-documentation/api-v2/clock/)
+
+### Account Configurations (Planned)
+
+[Link to Account Configurations Documentation](https://alpaca.markets/docs/api-documentation/api-v2/account-configuration/)
+
+### Account Activities (Planned)
+
+[Link to Account Activities Documentation](https://alpaca.markets/docs/api-documentation/api-v2/account-activities/)
+
+### Portfolio History (Planned)
+
+[Link to Portfolio History Documentation](https://alpaca.markets/docs/api-documentation/api-v2/portfolio-history/)
+
+### Market Data (Planned)
+
+[Link to Market Data Documentation](https://alpaca.markets/docs/api-documentation/api-v2/market-data/)
+
+### Polygon Integration (Planned)
+
+[Link to Polygon Integration Documentation](https://alpaca.markets/docs/api-documentation/api-v2/polygon-integration/)
